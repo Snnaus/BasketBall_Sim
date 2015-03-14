@@ -122,12 +122,14 @@ class Player():
                 self.posi['OF'] += value
     
     def tired_set(self):
-        new_tired =  random.randint(1,self.attr['work_rate'])
+        new_tired =  random.randint(1,30-self.attr['work_rate'])
         self.tiredness += random.randint(1,new_tired)
         self.set_exhaust()
     
-    def rest(self):
+    def rest(self, half_time=False):
         rest = 10 #+ random.randint(1,self.attr['regen_rate'])
+        if half_time == True:
+            rest = 30
         self.tiredness -= rest
         if self.tiredness < 0:
             self.tiredness = 0
@@ -367,9 +369,7 @@ class Coach():
         #print foul_out
         ought_fouls = float(current_time) / 4.0
         coef = float(fouls) / ought_fouls
-        if current_time == 1 or fouls == 0:
-            coef = 1
-        elif coef >= 1.0 and fouls < foul_out:
+        if current_time == 1 or fouls == 0 or fouls < foul_out:
             coef = 1
         elif fouls >= foul_out:
             #print 'dude'
@@ -1435,6 +1435,12 @@ def Game(team1, team2, league, college=False, tourn=False, debug=False):
         team2.roster[i].set_exhaust()
     
     while True:
+    
+        for player in team1.roster:
+            player.rest(True)
+        for player in team2.roster:
+            player.rest(True)
+    
         current_turn = 1
         #possessions
         team1_carry = [0]
