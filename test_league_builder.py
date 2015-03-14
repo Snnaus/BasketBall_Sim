@@ -5,7 +5,7 @@ print datetime.datetime.utcnow()
 
 one = League()
 #pickle.dump(one, open("one_test.txt", 'wb'))
-save = shelve.open("test.txt")
+save = shelve.open("test_league.txt")
 save['one'] = one
 save.close()
 
