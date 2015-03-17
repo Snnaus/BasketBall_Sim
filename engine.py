@@ -727,6 +727,8 @@ class Club():
             delta = -1.00'''
         denom = 5.0*delta
         add = pd/denom
+        if self.pse_elo - opp_elo < 0:
+            add = denom/pd
         '''if denom > pd and pd < 0:
             add = pd/(denom*-1)'''
         '''if pd < 0:
@@ -1093,7 +1095,7 @@ class League():
             
     def player_week(self, week):
         for game in week:
-            Game(self.teams[game[0]], self.teams[game[1]], self, self.college)
+            Game(self.teams[game[0]], self.teams[game[1]], self)
             
     def coach_creation(self):
         while True:
@@ -1244,7 +1246,7 @@ class League():
         for id, team in self.teams.iteritems():
             rpi.append([team.club_id, team.rpi, False])
             elo.append([team.club_id, team.pse_elo, False])
-            win_p.append([team.club_id, float(team.wins)/float(team.games_played), False])
+            win_p.append([team.club_id, team.wins, False])
         
         points_rpi = len(rpi)
         points_elo = len(elo)
@@ -1412,12 +1414,12 @@ def lineup_stats(lineup):
     #print stats
     return stats
 
-def Game(team1, team2, league, college=False, tourn=False, debug=False):
+def Game(team1, team2, league, tourn=False, debug=False):
     #print league.game_count
     league.game_count += 1
     turns_top = 12
     foul_out = 6
-    if college == True:
+    if league.college == True:
         turns_top = 10
         foul_out = 5
     half = 1
@@ -1473,7 +1475,7 @@ def Game(team1, team2, league, college=False, tourn=False, debug=False):
                     if played == False:
                         player.rest()
                 score1, score2 = update_points(team1), update_points(team2)
-                #print score1, score2
+                print score1, score2
         half += 1
         if half >= 3:
             break
@@ -1494,9 +1496,10 @@ def Game(team1, team2, league, college=False, tourn=False, debug=False):
                     for player in lineup2:
                         player[0].tired_set()
                         player[0].update_percents(player[0].g_stats)
-                    #for player in bench:
-                        #player.rest()
+                    for player in bench:
+                        player.rest()
                     score1, score2 = update_points(team1), update_points(team2)
+                    #print score1, score2
                 ot_turn -= 1
             if score1 != score2:
                 break
