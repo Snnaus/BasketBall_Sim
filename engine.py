@@ -387,6 +387,16 @@ class Coach():
     #this is how long the coach has been at the same club. this should affect his decision to chose an extension over FA
     inertia = 0'''
     
+    def call_time(self, opp_run, time, time_outs):
+        call = False
+        ought_time = 5.0 - (float(time)/4.0)
+        #print 'ought', ought_time
+        check = opp_run * (float(time_outs)/ought_time)
+        #print check
+        if check > 1 or check == 0:
+            call = True
+        return call
+    
     def update_per(self):
         total_win_per = float(self.career_games[0]/career_games[1])
         recent_history, years = 0, 0
@@ -727,7 +737,7 @@ class Club():
             delta = -1.00'''
         denom = 5.0*delta
         add = pd/denom
-        if self.pse_elo - opp_elo < 0:
+        if denom < delta:
             add = denom/pd
         '''if denom > pd and pd < 0:
             add = pd/(denom*-1)'''
@@ -743,6 +753,8 @@ class Club():
             self.pse_elo += add
         else:
             self.pse_elo2 += add
+            
+        return (add, delta)
     
     def update_opp_win_per(self, league):
         #This is for the possible addition of an RPI system.
@@ -1247,6 +1259,7 @@ class League():
             rpi.append([team.club_id, team.rpi, False])
             elo.append([team.club_id, team.pse_elo, False])
             win_p.append([team.club_id, team.wins, False])
+            #print team.club_id, team.rpi, team.pse_elo
         
         points_rpi = len(rpi)
         points_elo = len(elo)
@@ -1331,7 +1344,9 @@ class League():
             count_g = 0
             for game in region:
                 #print count_r, count_g, count_t
-                new_brack[count_r][count_g][count_t] = Game(self.teams[game[0]],self.teams[game[1]], self, self.college, True)
+                x = Game(self.teams[game[0]],self.teams[game[1]], self, True)
+                #print x
+                new_brack[count_r][count_g][count_t] = x
                 count_t += 1
                 if count_t > 1:
                     count_t = 0
@@ -1366,6 +1381,7 @@ class League():
                         count_g += 1
                     count_r += 1
                         
+        print bracket
         round32 = self.play_tourn_rd(bracket)
         print round32
         sweet16 = self.play_tourn_rd(round32)
@@ -1376,10 +1392,10 @@ class League():
         print final4
         final = self.play_tourn_rd(final4)
         print final
-        champ = Game(self.teams[final[0][0][0]], self.teams[final[0][0][1]], self, self.college, True)
+        champ = Game(self.teams[final[0][0][0]], self.teams[final[0][0][1]], self, True)
         print champ
         
-def lineup_stats(lineup):
+def lineup_stats(lineup, run):
     stats = {}
     count = 0
     for player in lineup:
@@ -1392,11 +1408,11 @@ def lineup_stats(lineup):
             if key == 'fouling':
                 stats[key] += (20.0 - value)/(2.0 * player[0].exhaustion)
             elif key == 'three_conversion':
-                stats[key] += value*1.0 * player[0].exhaustion
+                stats[key] += value*1.0 * player[0].exhaustion * run
             elif key == 'outside_conversion':
-                stats[key] += value* player[0].exhaustion
+                stats[key] += value* player[0].exhaustion * run
             elif key == 'inside_conv_mod' or key == 'outside_conv_mod':
-                stats[key] += value/2.0 * player[0].exhaustion
+                stats[key] += value/2.0 * player[0].exhaustion * run
             elif key == 'draw_foul':
                 stats[key] += value/4.0 * player[0].exhaustion
             elif key == 'pos_create':
@@ -1404,26 +1420,29 @@ def lineup_stats(lineup):
                 #print value, poss
                 stats[key] += poss 
             elif key == 'steal_rate':
-                stats[key] += value/5.0
+                stats[key] += (value/5.0) * run
             elif key == 'assist_rate':
-                stats[key] += value/2.0
+                stats[key] += (value/2.0) * run
             elif key == 'block_rate':
-                stats[key] += value/3.0
+                stats[key] += (value/3.0) * run
             else:
                 stats[key] += value * player[0].exhaustion
     #print stats
     return stats
 
-def Game(team1, team2, league, tourn=False, debug=False):
+def Game(team1, team2, league, tourn=False):
     #print league.game_count
     league.game_count += 1
     turns_top = 12
+    overall_turn = 0
     foul_out = 6
     if league.college == True:
         turns_top = 10
         foul_out = 5
     half = 1
     score1, score2 = 0, 0
+    time_out1, time_out2 = 5, 5
+    run1, run2 = 1.0, 1.0
     team1.games_played += 1
     team2.games_played += 1
     team1.player_g_stat_reset(league)
@@ -1449,12 +1468,31 @@ def Game(team1, team2, league, tourn=False, debug=False):
         team2_carry = [0]
         while True:
             current_turn += 1
+            overall_turn += 1
+            called_time = False
             if current_turn > turns_top:
                 break
             else:
-                lineup1 = league.coaches[team1.head_coach].set_lineup(team1.roster, score1-score2, current_turn, foul_out, turns_top*2)
-                lineup2 = league.coaches[team2.head_coach].set_lineup(team2.roster, score2-score1, current_turn, foul_out, turns_top*2)
-                Game_turn(lineup1, lineup2, team1_carry, team2_carry, foul_out, test_m, test_s, test_st)
+                called_time = league.coaches[team1.head_coach].call_time(run2, overall_turn, time_out1)
+                if called_time == True and time_out1 > 0:
+                    time_out1 -= 1
+                    run1, run2 = 1.0, 1.0
+                else:
+                    called_time = league.coaches[team2.head_coach].call_time(run1, overall_turn, time_out2)
+                    if called_time == True and time_out2 > 0:
+                        time_out2 -= 1
+                        run1, run2 = 1.0, 1.0
+                '''print time_out1, time_out2
+                print run1, run2'''
+                lineup1 = league.coaches[team1.head_coach].set_lineup(team1.roster, score1-score2, overall_turn, foul_out, turns_top*2)
+                lineup2 = league.coaches[team2.head_coach].set_lineup(team2.roster, score2-score1, overall_turn, foul_out, turns_top*2)
+                change = Game_turn(lineup1, lineup2, team1_carry, team2_carry, foul_out, test_m, test_s, test_st, run1, run2)
+                run1 += change
+                if run1 > 1.9:
+                    run1 = 1.9
+                elif run1 < 0.1:
+                    run1 = 0.1
+                run2 = 2.0 - run1
                 for player in lineup1:
                     player[0].tired_set()
                 for player in lineup2:
@@ -1475,12 +1513,13 @@ def Game(team1, team2, league, tourn=False, debug=False):
                     if played == False:
                         player.rest()
                 score1, score2 = update_points(team1), update_points(team2)
-                print score1, score2
+                #print score1, score2
         half += 1
         if half >= 3:
             break
     if score1 == score2:
         overtime = 1
+        #print "Overtime: " + str(overtime)
         while True:
             ot_turn = 3
             while True:
@@ -1489,15 +1528,33 @@ def Game(team1, team2, league, tourn=False, debug=False):
                 else:
                     lineup1 = league.coaches[team1.head_coach].set_lineup(team1.roster, score1-score2, current_turn, foul_out, turns_top*2)
                     lineup2 = league.coaches[team2.head_coach].set_lineup(team2.roster, score2-score1, current_turn, foul_out, turns_top*2)
-                    Game_turn(lineup1, lineup2, team1_carry, team2_carry, foul_out, test_m, test_s, test_st)
+                    change = Game_turn(lineup1, lineup2, team1_carry, team2_carry, foul_out, test_m, test_s, test_st, run1, run2)
+                    run1 += change
+                    if run1 > 1.9:
+                        run1 = 1.9
+                    elif run1 < 0.1:
+                        run1 = 0.1
+                    run2 = 2.0 - run1
                     for player in lineup1:
                         player[0].tired_set()
                         player[0].update_percents(player[0].g_stats)
                     for player in lineup2:
                         player[0].tired_set()
                         player[0].update_percents(player[0].g_stats)
-                    for player in bench:
-                        player.rest()
+                    for player in team1.roster:
+                        played = False
+                        for i in lineup1:
+                            if player.player_id == i[0].player_id:
+                                played = True
+                        if played == False:
+                                player.rest()
+                    for player in team2.roster:
+                        played = False
+                        for i in lineup2:
+                            if player.player_id == i[0].player_id:
+                                played = True
+                        if played == False:
+                            player.rest()
                     score1, score2 = update_points(team1), update_points(team2)
                     #print score1, score2
                 ot_turn -= 1
@@ -1521,14 +1578,12 @@ def Game(team1, team2, league, tourn=False, debug=False):
             print key, ': ', stat'''
     
     
-    team1.current_season_game_log.append((score1, score2, team2.club_id))
-    team2.current_season_game_log.append((score2, score1, team1.club_id))
+    dude1 = team1.update_elo(score1-score2, team2.pse_elo)
+    dude2 = team2.update_elo(score2-score1, team1.pse_elo)
     
-    team1.update_elo(score1-score2, team2.pse_elo)
-    team2.update_elo(score2-score1, team1.pse_elo)
+    team1.current_season_game_log.append((score1, score2, team2.club_id, team1.pse_elo, dude1))
+    team2.current_season_game_log.append((score2, score1, team1.club_id, team2.pse_elo, dude2))
     
-    if debug == True:
-        return [test_m, test_s, test_st]
         
     if tourn == True:
         if score1-score2 > 0:
@@ -1685,7 +1740,10 @@ def stat_allocate(lineup, shots, made, pl_stats, stats, foul_out, test_m, test_s
         
         if stat != None:
             for i in range(value):
-                fate = random.randint(1, math.floor(stats[stat]))
+                z = math.floor(stats[stat])
+                if z < 1:
+                    z = 1.0
+                fate = random.randint(1, z)
                 base = math.floor(stats[stat])
                 passed = 0
                 count = 0
@@ -1705,9 +1763,9 @@ def stat_allocate(lineup, shots, made, pl_stats, stats, foul_out, test_m, test_s
                     else:
                         passed += player[0].attr[stat]
     
-def Game_turn(lineup1, lineup2, carry1, carry2, foul_out, test_m, test_s, test_st):
-    stats1 = lineup_stats(lineup1)
-    stats2 = lineup_stats(lineup2)
+def Game_turn(lineup1, lineup2, carry1, carry2, foul_out, test_m, test_s, test_st, run1, run2):
+    stats1 = lineup_stats(lineup1, run1)
+    stats2 = lineup_stats(lineup2, run2)
     pl_stats1 = {
             'PTS': 0,
             'FGM': 0,
@@ -1800,6 +1858,7 @@ def Game_turn(lineup1, lineup2, carry1, carry2, foul_out, test_m, test_s, test_s
     made2 = shooting(stats2, shots2, stats1, pl_stats2, pl_stats1)
     stat_allocate(lineup1, shots1, made1, pl_stats1, stats1, foul_out, test_m, test_s, test_st)
     stat_allocate(lineup2, shots2, made2, pl_stats2, stats2, foul_out, test_m, test_s, test_st)
+    return update_run(pl_stats1, pl_stats2)
    
 def update_points(team):
     #     [3p,2p,FT]
@@ -1810,4 +1869,9 @@ def update_points(team):
         fgs[2] += player.g_stats['FTM']
     
     return fgs[0]*3+fgs[1]*2+fgs[2]
-    
+
+def update_run(stats1, stats2):
+    points1, points2 = 0, 0
+    points1 += (2*stats1['3PM']) + stats1['FGM'] + (2*stats1['BLK']) + (2*stats1['STL'])
+    points2 += (2*stats2['3PM']) + stats2['FGM'] + (2*stats2['BLK']) + (2*stats2['STL'])
+    return float(points1 - points2)/10.0
