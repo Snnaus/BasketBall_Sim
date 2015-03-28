@@ -33,6 +33,7 @@ class Player():
         self.attr['stamina'] = random.randint(3,10)
         self.attr['work_rate'] = random.randint(3,10)
         self.attr['regen_rate'] = random.randint(3,10)
+        self.attr['toughness'] = random.randint(3,10)
         
         self.g_stats = {
             'PTS': 0,
@@ -116,14 +117,15 @@ class Player():
                 self.posi['PF'] += value
             if key == 'poss_taken' or key == 'inside_conversion' or key == 'block_rate' or key == 'rebound' or key == 'inside_conv_mod':
                 self.posi['C'] += value
-            if key == 'poss_taken' or key == 'outside_conv_mod' or key == 'block_rate' or key == 'steal_rate' or key == 'inside_conv_mod' or key == 'rebound':
+            if key == 'poss_taken' or key == 'outside_conv_mod' or key == 'block_rate' or key == 'steal_rate' or key == 'inside_conv_mod' or key == 'rebound' or key == 'toughness':
                 self.posi['DE'] += value
-            if key == 'pos_create' or key == 'outside_conversion' or key == 'inside_conversion' or key == 'outside_conv_mod' or key == 'three_conversion' or key == 'assist_rate':
+            if key == 'pos_create' or key == 'outside_conversion' or key == 'inside_conversion' or key == 'outside_rate' or key == 'three_conversion' or key == 'assist_rate' or key == 'draw_foul':
                 self.posi['OF'] += value
     
-    def tired_set(self):
+    def tired_set(self, grit):
+        #grit is the value of the opponents toughness that affects the stamina of the teams players
         new_tired =  random.randint(1,30-self.attr['work_rate'])
-        self.tiredness += random.randint(1,new_tired)
+        self.tiredness += new_tired * (1 - (grit/100))
         self.set_exhaust()
     
     def rest(self, half_time=False):
@@ -387,15 +389,30 @@ class Coach():
     #this is how long the coach has been at the same club. this should affect his decision to chose an extension over FA
     inertia = 0'''
     
-    def call_time(self, opp_run, time, time_outs):
+    def call_time(self, opp_run, time, time_outs, team):
+        #This is the parent function of a coach calling a timeout; the logic here will decide if a timeout will be called because of an opponents 'run'
         call = False
         ought_time = 5.0 - (float(time)/4.0)
         #print 'ought', ought_time
-        check = opp_run * (float(time_outs)/ought_time)
+        time_should = (float(time_outs)/ought_time)
+        check = opp_run * time_should
         #print check
         if check > 1 or check == 0:
             call = True
+        if call == False:
+            call = self.rest_time_out(time_should, team)
         return call
+    
+    def rest_time_out(self, time_should, team):
+        rest_coef = 0.00
+        for player in team:
+            rest_coef += player.exhaustion
+        rest_coef = rest_coef/float(len(team))
+        if rest_coef * time_should > 0.85:
+            return True
+        else:
+            return False
+        
     
     def update_per(self):
         total_win_per = float(self.career_games[0]/career_games[1])
@@ -731,14 +748,17 @@ class Club():
         '''if self.pse_elo == 0:
             self.pse_elo = 1000'''
         delta = self.pse_elo - opp_elo
-        if delta < 1.00:
+        if delta == 0:
             delta = 1.00
         '''elif delta < 0 and delta > -1:
             delta = -1.00'''
-        denom = 5.0*delta
-        add = pd/denom
-        if denom < delta:
-            add = denom/pd
+        denom = abs(pd)+5.0*abs(delta)
+        if denom == 0:
+            add = 0.00
+        else:
+            add = pd/denom
+        '''if pd < 0 and delta > 0:
+            add = pd/denom'''
         '''if denom > pd and pd < 0:
             add = pd/(denom*-1)'''
         '''if pd < 0:
@@ -1473,15 +1493,23 @@ def Game(team1, team2, league, tourn=False):
             if current_turn > turns_top:
                 break
             else:
-                called_time = league.coaches[team1.head_coach].call_time(run2, overall_turn, time_out1)
+                called_time = league.coaches[team1.head_coach].call_time(run2, overall_turn, time_out1, team1.roster)
                 if called_time == True and time_out1 > 0:
                     time_out1 -= 1
                     run1, run2 = 1.0, 1.0
+                    for player in team1.roster:
+                        player.rest()
+                    for player in team2.roster:
+                        player.rest()
                 else:
-                    called_time = league.coaches[team2.head_coach].call_time(run1, overall_turn, time_out2)
+                    called_time = league.coaches[team2.head_coach].call_time(run1, overall_turn, time_out2, team2.roster)
                     if called_time == True and time_out2 > 0:
                         time_out2 -= 1
                         run1, run2 = 1.0, 1.0
+                        for player in team1.roster:
+                            player.rest()
+                        for player in team2.roster:
+                            player.rest()
                 '''print time_out1, time_out2
                 print run1, run2'''
                 lineup1 = league.coaches[team1.head_coach].set_lineup(team1.roster, score1-score2, overall_turn, foul_out, turns_top*2)
@@ -1493,10 +1521,7 @@ def Game(team1, team2, league, tourn=False):
                 elif run1 < 0.1:
                     run1 = 0.1
                 run2 = 2.0 - run1
-                for player in lineup1:
-                    player[0].tired_set()
-                for player in lineup2:
-                    player[0].tired_set()
+                
                 count_o = 0
                 for player in team1.roster:
                     played = False
@@ -1535,12 +1560,7 @@ def Game(team1, team2, league, tourn=False):
                     elif run1 < 0.1:
                         run1 = 0.1
                     run2 = 2.0 - run1
-                    for player in lineup1:
-                        player[0].tired_set()
-                        player[0].update_percents(player[0].g_stats)
-                    for player in lineup2:
-                        player[0].tired_set()
-                        player[0].update_percents(player[0].g_stats)
+                    
                     for player in team1.roster:
                         played = False
                         for i in lineup1:
@@ -1858,6 +1878,12 @@ def Game_turn(lineup1, lineup2, carry1, carry2, foul_out, test_m, test_s, test_s
     made2 = shooting(stats2, shots2, stats1, pl_stats2, pl_stats1)
     stat_allocate(lineup1, shots1, made1, pl_stats1, stats1, foul_out, test_m, test_s, test_st)
     stat_allocate(lineup2, shots2, made2, pl_stats2, stats2, foul_out, test_m, test_s, test_st)
+    for player in lineup1:
+        player[0].tired_set(stats2['toughness'])
+        player[0].update_percents(player[0].g_stats)
+    for player in lineup2:
+        player[0].tired_set(stats1['toughness'])
+        player[0].update_percents(player[0].g_stats)
     return update_run(pl_stats1, pl_stats2)
    
 def update_points(team):
