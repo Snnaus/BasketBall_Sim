@@ -1452,9 +1452,9 @@ def lineup_stats(lineup, run):
 
 def Game(team1, team2, league, tourn=False):
     #print league.game_count
-    league.game_count += 1
+    #league.game_count += 1
     turns_top = 12
-    overall_turn = 0
+    overall_turn = 1
     foul_out = 6
     if league.college == True:
         turns_top = 10
@@ -1514,7 +1514,7 @@ def Game(team1, team2, league, tourn=False):
                 print run1, run2'''
                 lineup1 = league.coaches[team1.head_coach].set_lineup(team1.roster, score1-score2, overall_turn, foul_out, turns_top*2)
                 lineup2 = league.coaches[team2.head_coach].set_lineup(team2.roster, score2-score1, overall_turn, foul_out, turns_top*2)
-                change = Game_turn(lineup1, lineup2, team1_carry, team2_carry, foul_out, test_m, test_s, test_st, run1, run2)
+                change = Game_turn(lineup1, lineup2, team1_carry, team2_carry, foul_out, run1, run2)
                 run1 += change
                 if run1 > 1.9:
                     run1 = 1.9
@@ -1690,7 +1690,7 @@ def shooting(stats, shots, dstats, pl_stats, dpl_stats):
    
     return made
 
-def stat_allocate(lineup, shots, made, pl_stats, stats, foul_out, test_m, test_s, test_st):
+def stat_allocate(lineup, shots, made, pl_stats, stats, foul_out):
     shots[2] = shots[2] + shots[3]
     made[2] = made[2] + made[3]
     for x in range(5):
@@ -1720,7 +1720,6 @@ def stat_allocate(lineup, shots, made, pl_stats, stats, foul_out, test_m, test_s
                     count += 1
                     base -= player[0].attr[key[0]]
                     if base < fate:
-                        test_m[count-1] += 1
                         player[0].g_stats[shot_type[0]] += 1
                         player[0].g_stats[shot_type[1]] += 1
                         player[0].g_stats['PTS'] += shot_type[2]
@@ -1737,7 +1736,6 @@ def stat_allocate(lineup, shots, made, pl_stats, stats, foul_out, test_m, test_s
                     count += 1
                     base -= player[0].attr[key[0]]
                     if base < fate:
-                        test_s[count-1] += 1
                         player[0].g_stats[shot_type[1]] += 1
                         break
                     else:
@@ -1771,7 +1769,6 @@ def stat_allocate(lineup, shots, made, pl_stats, stats, foul_out, test_m, test_s
                     count += 1
                     base -= player[0].attr[stat]
                     if base < fate:
-                        test_st[count-1] += 1
                         player[0].g_stats[key] += 1
                         if stat == 'rebound':
                             player[0].g_stats['TRB'] += 1
@@ -1783,7 +1780,7 @@ def stat_allocate(lineup, shots, made, pl_stats, stats, foul_out, test_m, test_s
                     else:
                         passed += player[0].attr[stat]
     
-def Game_turn(lineup1, lineup2, carry1, carry2, foul_out, test_m, test_s, test_st, run1, run2):
+def Game_turn(lineup1, lineup2, carry1, carry2, foul_out, run1, run2):
     stats1 = lineup_stats(lineup1, run1)
     stats2 = lineup_stats(lineup2, run2)
     pl_stats1 = {
@@ -1876,8 +1873,8 @@ def Game_turn(lineup1, lineup2, carry1, carry2, foul_out, test_m, test_s, test_s
     #the shooting functions
     made1 = shooting(stats1, shots1, stats2, pl_stats1, pl_stats2)
     made2 = shooting(stats2, shots2, stats1, pl_stats2, pl_stats1)
-    stat_allocate(lineup1, shots1, made1, pl_stats1, stats1, foul_out, test_m, test_s, test_st)
-    stat_allocate(lineup2, shots2, made2, pl_stats2, stats2, foul_out, test_m, test_s, test_st)
+    stat_allocate(lineup1, shots1, made1, pl_stats1, stats1, foul_out)
+    stat_allocate(lineup2, shots2, made2, pl_stats2, stats2, foul_out)
     for player in lineup1:
         player[0].tired_set(stats2['toughness'])
         player[0].update_percents(player[0].g_stats)

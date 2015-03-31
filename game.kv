@@ -1,18 +1,32 @@
 # File name: Kivy_test.py
 #:kivy 1.8.0
 
-<MenuScreen>:
-	GridLayout:
-		rows: 2
-		TestButton:
-			text: 'Play Game'
-			on_press: self.press_callback()
-		Button:
-			text: 'TEst'
+<GameSM>
+	MenuScreen:
+		name: 'menu'
+		GridLayout:
+			rows: 2
+			TestButton:
+				text: 'Play Game'
+				on_press: root.current = 'scoreboard'
+			Button:
+				text: 'TEst'
 			
 			
-<ScoreBoardScreen>:
-	GridLayout:
-		rows: 2
-		Button:
-			text: 'Test'
+	ScoreBoardScreen:
+		name: 'scoreboard'
+		GridLayout:
+			rows: 2
+			Label:
+				text: str(root.score1)
+			Label:
+				text: str(root.score2)
+			Button:
+				text: 'Menu'
+				on_press: root.current = 'menu'
+			Button:
+				text: 'Set Lineup'
+				on_press: root.bball_game.debug_user()
+			Button:
+				text: root.universal_text
+				on_press: root.uni_button_call()
