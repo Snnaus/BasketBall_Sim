@@ -99,7 +99,7 @@ class UserGame():
         for player in self.user.roster:
             played = False
             for i in self.user_lineup:
-                if player.player_id == i.player_id:
+                if player.player_id == i[0].player_id:
                     played = True
             if played == False:
                 player.rest()

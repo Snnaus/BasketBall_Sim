@@ -122,10 +122,10 @@ class Player():
             if key == 'pos_create' or key == 'outside_conversion' or key == 'inside_conversion' or key == 'outside_rate' or key == 'three_conversion' or key == 'assist_rate' or key == 'draw_foul':
                 self.posi['OF'] += value
     
-    def tired_set(self, grit):
+    def tired_set(self, grit=None):
         #grit is the value of the opponents toughness that affects the stamina of the teams players
         new_tired =  random.randint(1,30-self.attr['work_rate'])
-        self.tiredness += new_tired * (1 - (grit/100))
+        self.tiredness += new_tired #* (1 - (grit/100))
         self.set_exhaust()
     
     def rest(self, half_time=False):
@@ -1419,6 +1419,7 @@ def lineup_stats(lineup, run):
     stats = {}
     count = 0
     for player in lineup:
+        print player[0].attr
         count += 1
         player[0].g_stats['GT'] += 1
         #print player[0].exhaustion
@@ -1876,10 +1877,10 @@ def Game_turn(lineup1, lineup2, carry1, carry2, foul_out, run1, run2):
     stat_allocate(lineup1, shots1, made1, pl_stats1, stats1, foul_out)
     stat_allocate(lineup2, shots2, made2, pl_stats2, stats2, foul_out)
     for player in lineup1:
-        player[0].tired_set(stats2['toughness'])
+        player[0].tired_set()
         player[0].update_percents(player[0].g_stats)
     for player in lineup2:
-        player[0].tired_set(stats1['toughness'])
+        player[0].tired_set()
         player[0].update_percents(player[0].g_stats)
     return update_run(pl_stats1, pl_stats2)
    
