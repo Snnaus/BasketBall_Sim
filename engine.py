@@ -3,37 +3,38 @@ import random, math, operator
 
 class Player():
     
-    def __init__(self, world_id):
+    def __init__(self, world_id, skills=[3,8]):
     
         self.player_id = world_id
-        self.age = random.randint(17,19)
+        self.age = random.randint(18,18)
         self.location = random.randint(1,50)
         self.recruited = False
+        self.drafted = False
         
         self.attr = {}
-        self.attr['pos_create'] = random.randint(3,10)
-        self.attr['inside_rate'] = random.randint(3,10)
-        self.attr['outside_rate'] = random.randint(3,10)
-        self.attr['three_rate'] = random.randint(3,10)
-        self.attr['inside_conversion'] = random.randint(3,10)
-        self.attr['outside_conversion'] = random.randint(3,10)
-        self.attr['three_conversion'] = random.randint(3,10)
-        self.attr['assist_rate'] = random.randint(3,10)
-        self.attr['poss_taken'] = random.randint(3,10)
-        self.attr['inside_conv_mod'] = random.randint(3,10)
-        self.attr['outside_conv_mod'] = random.randint(3,10)
-        self.attr['block_rate'] = random.randint(3,10)
-        self.attr['steal_rate'] = random.randint(3,10)
-        self.attr['rebound'] = random.randint(3,10)
-        self.attr['chemistry'] = random.randint(3,10)
-        self.attr['fouling'] = random.randint(3,10)
-        self.attr['free_throw'] = random.randint(3,10)
-        self.attr['draw_foul'] = random.randint(3,10)
-        self.attr['ball_security'] = random.randint(3,10)
-        self.attr['stamina'] = random.randint(3,10)
-        self.attr['work_rate'] = random.randint(3,10)
-        self.attr['regen_rate'] = random.randint(3,10)
-        self.attr['toughness'] = random.randint(3,10)
+        self.attr['pos_create'] = random.randint(skills[0],skills[1])
+        self.attr['inside_rate'] = random.randint(skills[0],skills[1])
+        self.attr['outside_rate'] = random.randint(skills[0],skills[1])
+        self.attr['three_rate'] = random.randint(skills[0],skills[1])
+        self.attr['inside_conversion'] = random.randint(skills[0],skills[1])
+        self.attr['outside_conversion'] = random.randint(skills[0],skills[1])
+        self.attr['three_conversion'] = random.randint(skills[0],skills[1])
+        self.attr['assist_rate'] = random.randint(skills[0],skills[1])
+        self.attr['poss_taken'] = random.randint(skills[0],skills[1])
+        self.attr['inside_conv_mod'] = random.randint(skills[0],skills[1])
+        self.attr['outside_conv_mod'] = random.randint(skills[0],skills[1])
+        self.attr['block_rate'] = random.randint(skills[0],skills[1])
+        self.attr['steal_rate'] = random.randint(skills[0],skills[1])
+        self.attr['rebound'] = random.randint(skills[0],skills[1])
+        self.attr['chemistry'] = random.randint(skills[0],skills[1])
+        self.attr['fouling'] = random.randint(skills[0],skills[1])
+        self.attr['free_throw'] = random.randint(skills[0],skills[1])
+        self.attr['draw_foul'] = random.randint(skills[0],skills[1])
+        self.attr['ball_security'] = random.randint(skills[0],skills[1])
+        self.attr['stamina'] = random.randint(skills[0],skills[1])
+        self.attr['work_rate'] = random.randint(skills[0],skills[1])
+        self.attr['regen_rate'] = random.randint(skills[0],skills[1])
+        self.attr['toughness'] = random.randint(skills[0],skills[1])
         
         self.g_stats = {
             'PTS': 0,
@@ -90,8 +91,14 @@ class Player():
         self.total_skill = 0
         for key,value in self.attr.iteritems():
             self.total_skill += value
-        self.total_potential = random.randint(1,(660-self.total_skill))
-        self.skill_change = random.randint(1,50)
+        if self.total_skill < 460:
+            self.total_potential = random.randint(1,(460-self.total_skill))
+        else:
+            self.total_potential = 0
+        self.skill_change = random.randint(10,60)
+        
+        self.decay = [0,0,0,0]
+        self.decay[0], self.decay[1], self.decay[2], self.decay[3] = random.randint(39,45), random.randint(33,38), random.randint(25, 32), random.randint(21,28)
         
         #Player Stats
         self.season_game_log = {}
@@ -102,7 +109,6 @@ class Player():
         self.tiredness = 0
         self.personality = 0
         self.exhaustion = 0
-    
     
     #this method is used to update the players position scores
     def pos_update(self):
@@ -122,10 +128,10 @@ class Player():
             if key == 'pos_create' or key == 'outside_conversion' or key == 'inside_conversion' or key == 'outside_rate' or key == 'three_conversion' or key == 'assist_rate' or key == 'draw_foul':
                 self.posi['OF'] += value
     
-    def tired_set(self, grit=None):
+    def tired_set(self, grit):
         #grit is the value of the opponents toughness that affects the stamina of the teams players
         new_tired =  random.randint(1,30-self.attr['work_rate'])
-        self.tiredness += new_tired #* (1 - (grit/100))
+        self.tiredness += new_tired * (1 - (grit/100))
         self.set_exhaust()
     
     def rest(self, half_time=False):
@@ -162,7 +168,8 @@ class Player():
         for key, value in self.season_totals.iteritems():
             _temp_dict[key] = value
             self.season_totals[key] = 0
-        self.career_season_log[year] = _temp_dict    
+        self.career_season_log[year] = _temp_dict
+        self.skill_progression()
             
     #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     # Decision Making
@@ -194,12 +201,14 @@ class Player():
     
     def skill_progression(self):
         decay = 0
-        if self.age > 41:
-            decay = 50
-        elif self.age > 35:
-            decay = 20
-        elif self.age > 28:
+        if self.age > self.decay[0]:#41
+            decay = 30
+        elif self.age > self.decay[1]:#35
+            decay = 15
+        elif self.age > self.decay[2]:#28
             decay = 10
+        elif self.age > self.decay[3]:
+            decay = 5
         
         change_in_skill = self.skill_change
         if self.total_potential < self.skill_change:
@@ -207,17 +216,28 @@ class Player():
         
         for x in range(abs(change_in_skill - decay)):
             change = 1
-            if decay > self.skill_change:
+            if decay > change_in_skill:
                 change = -1
             while True:
                 key = random.choice(self.attr.keys())
                 if self.attr[key] < 20:
                     self.attr[key] += change
+                    if self.attr[key] < 1:
+                        self.attr[key] = 1
                     break
+                else:
+                    all_twenty = True
+                    for key,value in self.attr.iteritems():
+                        if value < 20:
+                            all_twenty = False
+                    if all_twenty == False:
+                        break
         
         self.total_potential -= self.skill_change
-        if selt.total_potential < 0:
+        if self.total_potential < 0:
             self.total_potential = 0
+        self.age += 1
+        self.pos_update()
     
     def g_stat_reset(self):
         for x in self.g_stats:
@@ -295,7 +315,7 @@ class Coach():
         self.focal_point = random.randint(1,5)
         
                             #[wins, games played]
-        self.career_games = [0,0]
+        self.career_games = [0.0,0.0]
         self.previous_season = [0,0]
         self.recent_history = [-1,-1,-1] #this takes the wins from the past three seasons for the coaches recent history
         self.current_job_win_per = [] #this is for the log of season wins with the coaches current team
@@ -394,6 +414,8 @@ class Coach():
         call = False
         ought_time = 5.0 - (float(time)/4.0)
         #print 'ought', ought_time
+        if ought_time == 0.0:
+            ought_time = 0.0001
         time_should = (float(time_outs)/ought_time)
         check = opp_run * time_should
         #print check
@@ -413,7 +435,6 @@ class Coach():
         else:
             return False
         
-    
     def update_per(self):
         total_win_per = float(self.career_games[0]/career_games[1])
         recent_history, years = 0, 0
@@ -580,6 +601,27 @@ class Coach():
         else:
             return False
     
+    def post_season_update(self, team):
+        self.previous_season = [float(team.wins), float(team.games_played)]
+        self.career_games[0] += team.wins
+        self.career_games[1] += team.games_played
+        new_recent = [0,0,0]
+        count = 0
+        for x in self.recent_history:
+            if count < 2:
+                new_recent[count+1] = x
+            else:
+                new_recent[0] = [team.wins, team.games_played]
+            count += 1
+        self.recent_history = new_recent
+        r_wins, r_games = 0.0,0.0
+        for season in self.recent_history:
+            if season not in [-1, 0]:
+                r_wins += season[0]
+                r_games += season[1]
+        self.recent_win_per = r_wins/r_games
+        self.total_win_per = self.career_games[0]/self.career_games[1]
+        
 class Board():
     #this class is for the board members of the team; they are the ones who makes decisions around the coach
     #and the financials of the club
@@ -989,7 +1031,7 @@ class League():
             
         self.coach_creation()
         self.hiring_loop(self.average_salary)
-        self.recruit_loop()
+        self.recruit_loop(1)
         
         self.confere_creation()
         self.conference_team()
@@ -999,18 +1041,23 @@ class League():
         if debug == True:
             self.play_season()
     
-    def play_season(self):
+    def play_season(self, first=False):
+        if first == False:
+            self.off_season()
+        else:
+            for id, player in self.players.iteritems():
+                player.drafted = False
+        
         self.season_num += 1
         for id, team in self.teams.iteritems():
-            team.wins, team.total_wins, team.games_played = 0, 0, 0
-            team.rank_pts, team.rank = 0, 0
+            team.wins, team.total_wins, team.games_played = 0.0, 0.0, 0.0
+            team.rank_pts, team.rank = 0.0, 0.0
             team.pse_elo, team.pse_elo2 = 1000, 1000
         for week in self.schedule_of_games:
                 self.player_week(week)
                 for id, team in self.teams.iteritems():
                     team.update_opp_win_per(self)
-        for i,player in self.players.iteritems():
-            player.post_season_update(self.season_num)
+        
         
         for i,team in self.teams.iteritems():
             team.find_rpi(self)
@@ -1018,6 +1065,14 @@ class League():
             
         self.rank_teams()
         self.tournament()
+        
+        for i,player in self.players.iteritems():
+            player.post_season_update(self.season_num)
+        for i,coach in self.coaches.iteritems():
+            if coach.employer != 0:
+                coach.post_season_update(self.teams[coach.employer])
+        self.update_avg_salary()
+        print self.average_salary
     
     def update_rank(self):
     
@@ -1137,14 +1192,35 @@ class League():
             else:
                 break
                 
-    def recruit_creation(self):
+    def recruit_creation(self, mulitplier=2):
         self.recruits = {}
         total = 0
+        first_recruit = False
+        if mulitplier == 1:
+            first_recruit = True
+        
+        start_skills = [[3,5],[4,7],[6,10],[9,12]]
+        
         for id, team in self.teams.iteritems():
             total += team.open_spots()
-            
-        for x in range(total*3):
-            self.recruits[self.world_id] = Player(self.world_id)
+        
+        if total > 1000:
+            mulitplier = 1
+        #the multiplier is how many recruits are created for the total open spots in college
+        for x in range(total*mulitplier):
+            genes = random.randint(1,333)
+            gene_id = 3
+            if genes > 134:
+                gene_id = 0
+            elif genes > 50:
+                gene_id = 1
+            elif genes > 2:
+                gene_id = 2
+            self.recruits[self.world_id] = Player(self.world_id, start_skills[gene_id])
+            if first_recruit == True:
+                age = random.choice([0,1,2,3])
+                for year in range(age):
+                    self.recruits[self.world_id].skill_progression()
             self.world_id += 1
     
     def confere_creation(self):
@@ -1152,8 +1228,8 @@ class League():
             self.conferences[self.conf_id] = Conference(self.conf_id)
             self.conf_id += 1
     
-    def recruit_loop(self):
-        self.recruit_creation()
+    def recruit_loop(self, mulitplier=2):
+        self.recruit_creation(mulitplier)
         while True:
         #for x in range(20):
             total = 0
@@ -1415,11 +1491,54 @@ class League():
         champ = Game(self.teams[final[0][0][0]], self.teams[final[0][0][1]], self, True)
         print champ
         
+    def pseudo_draft(self):
+        self.draftees = []
+        count = 0
+        for x in range(60):
+            self.draftees.append(count)
+            count += 1
+        for x in self.draftees:
+            current_selection = [0,-10000]
+            for key, player in self.players.iteritems():
+                if player.total_skill + player.total_potential > current_selection[1] and player.drafted == False:
+                    current_selection[0], current_selection[1] = key, player.total_skill+player.total_potential
+            self.draftees[x] = current_selection[0]
+            self.players[current_selection[0]].drafted = True
+            
+    def college_player_cleaner(self):
+        remove = []
+        for id in self.draftees:
+            remove.append(id)
+        for key, player in self.players.iteritems():
+            if player.age > 21:
+                remove.append(key)
+        for ckey, club in self.teams.iteritems():
+            count = 0
+            for player in club.roster:
+                if player.player_id in remove:
+                    club.roster[count] = 0
+                    self.coaches[club.head_coach].draft_value += 1
+                count += 1
+                
+    def off_season(self):
+        self.pseudo_draft()
+        self.college_player_cleaner()
+        
+        self.hiring_loop(self.average_salary)
+        self.recruit_loop()      
+    
+    def update_avg_salary(self):
+        total_money = 0
+        count = 0
+        for id,team in self.teams.iteritems():
+            total_money += team.coach_salary
+            count += 1
+        self.average_salary = total_money/count
+        
 def lineup_stats(lineup, run):
     stats = {}
     count = 0
     for player in lineup:
-        print player[0].attr
         count += 1
         player[0].g_stats['GT'] += 1
         #print player[0].exhaustion
@@ -1554,7 +1673,7 @@ def Game(team1, team2, league, tourn=False):
                 else:
                     lineup1 = league.coaches[team1.head_coach].set_lineup(team1.roster, score1-score2, current_turn, foul_out, turns_top*2)
                     lineup2 = league.coaches[team2.head_coach].set_lineup(team2.roster, score2-score1, current_turn, foul_out, turns_top*2)
-                    change = Game_turn(lineup1, lineup2, team1_carry, team2_carry, foul_out, test_m, test_s, test_st, run1, run2)
+                    change = Game_turn(lineup1, lineup2, team1_carry, team2_carry, foul_out, run1, run2)
                     run1 += change
                     if run1 > 1.9:
                         run1 = 1.9
@@ -1877,10 +1996,10 @@ def Game_turn(lineup1, lineup2, carry1, carry2, foul_out, run1, run2):
     stat_allocate(lineup1, shots1, made1, pl_stats1, stats1, foul_out)
     stat_allocate(lineup2, shots2, made2, pl_stats2, stats2, foul_out)
     for player in lineup1:
-        player[0].tired_set()
+        player[0].tired_set(stats2['toughness'])
         player[0].update_percents(player[0].g_stats)
     for player in lineup2:
-        player[0].tired_set()
+        player[0].tired_set(stats1['toughness'])
         player[0].update_percents(player[0].g_stats)
     return update_run(pl_stats1, pl_stats2)
    
@@ -1899,3 +2018,10 @@ def update_run(stats1, stats2):
     points1 += (2*stats1['3PM']) + stats1['FGM'] + (2*stats1['BLK']) + (2*stats1['STL'])
     points2 += (2*stats2['3PM']) + stats2['FGM'] + (2*stats2['BLK']) + (2*stats2['STL'])
     return float(points1 - points2)/10.0
+    
+class test_League():
+    def __init__(self, head_coaches, college=True):
+        self.college = college
+        self.coaches = {}
+        for i in head_coaches:
+            self.coaches[i.coach_id] = i
