@@ -727,6 +727,9 @@ class Club():
             
         for x in range(12):
              self.roster.append(0)
+             
+        #this is the metric for the amount of money that a team will receive at the end of the year
+        self.money_share = 0
         
     def pick_conference(self, league):
         choice = [0, -50]
@@ -1029,6 +1032,10 @@ class League():
         self.schedule_of_games = []
         self.games_played = 1
         self.conference_rank = []
+        
+        #this is the attributes to determine the amount of money each team receives
+        self.total_season_money = 0
+        self.total_shares = 0
     
     
         num_teams = 144
@@ -1063,10 +1070,13 @@ class League():
                 player.drafted = False
         
         self.season_num += 1
+        self.total_shares, self.total_season_money = 0,0
         for id, team in self.teams.iteritems():
             team.wins, team.total_wins, team.games_played = 0.0, 0.0, 0.0
             team.rank_pts, team.rank = 0.0, 0.0
             team.pse_elo, team.pse_elo2 = 1000, 1000
+            team.money_share = 0
+            self.total_season_money += team.coach_salary + team.ast_salary
         for week in self.schedule_of_games:
                 self.player_week(week)
                 for id, team in self.teams.iteritems():
@@ -1079,12 +1089,19 @@ class League():
             
         self.rank_teams()
         self.tournament()
+        self.deal_money()
+        for i,team in self.teams.iteritems():
+            team.contract_length -= 1
+            team.money -= team.coach_salary + team.ast_salary
+            if team.money < 1000:
+                team.money = 1000
         
         for i,player in self.players.iteritems():
             player.post_season_update(self.season_num)
         for i,coach in self.coaches.iteritems():
             if coach.employer != 0:
                 coach.post_season_update(self.teams[coach.employer])
+        
         self.update_avg_salary()
         print self.average_salary
     
@@ -1435,6 +1452,8 @@ class League():
             brack = [[]]
             for region in bracket:
                 brack[0].append(region[0])
+                self.teams[region[0]].money_share += 3
+                self.total_shares += 3
                 
             bracket = brack
                     
@@ -1490,7 +1509,8 @@ class League():
                             count += 1
                         count_g += 1
                     count_r += 1
-                        
+        
+        
         print bracket
         round32 = self.play_tourn_rd(bracket)
         print round32
@@ -1504,6 +1524,8 @@ class League():
         print final
         champ = Game(self.teams[final[0][0][0]], self.teams[final[0][0][1]], self, True)
         print champ
+        self.teams[champ].money_share += 10
+        self.total_shares += 10
         
     def pseudo_draft(self):
         self.draftees = []
@@ -1548,7 +1570,19 @@ class League():
             total_money += team.coach_salary
             count += 1
         self.average_salary = total_money/count
-        
+    
+    def deal_money(self):
+        dished = 0
+        for id,team in self.teams.iteritems():
+            revenue = (float(team.money_share)/float(self.total_shares)) * float(self.total_season_money)
+            revenue = math.ceil(revenue)
+            team.money += revenue
+            dished += revenue
+        if dished - self.total_season_money < 0:
+            for dollar in abs(dished-self.total_season_money):
+                fate = random.choice(list(self.teams.keys()))
+                self.teams[fate].money -= 1
+    
 def lineup_stats(lineup, run):
     stats = {}
     count = 0
@@ -1602,7 +1636,10 @@ def Game(team1, team2, league, tourn=False):
     team1.player_g_stat_reset(league)
     team2.player_g_stat_reset(league)
     
-    test_m, test_s, test_st = [0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]
+    if tourn is True:
+        team1.money_share += 1
+        team2.money_share += 1
+        league.total_shares += 2
     
     for i in range(10):
         team1.roster[i].tiredness, team2.roster[i].tiredness = 0,0
@@ -1723,8 +1760,11 @@ def Game(team1, team2, league, tourn=False):
         
     if score1 > score2:
         team1.wins += 1
+        team1.money_share += 1
     else:
         team2.wins += 1
+        team2.money_share += 1
+    league.total_shares += 1
     
     '''for player in team1.roster:
         print '----------------'
