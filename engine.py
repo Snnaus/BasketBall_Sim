@@ -308,8 +308,10 @@ class Coach():
                 self.preferences[x][i] += count
             self.total_pref += 6
         self.salary_dist = random.triangular(1.0, 2.1)
-        for key,value in self.coaching_skills.iteritems():
-            value = random.randint(1,20)
+        for key in self.coaching_skills:
+            stat = float(random.randint(1,20))
+            stat = stat/40.0
+            self.coaching_skills[key] = stat + 0.7
         #this is preference for game situations
         self.lower_limit = random.randint(4,20)
         self.focal_point = random.randint(1,5)
@@ -654,8 +656,11 @@ class Board():
         money_bid = 0
         for key,value in coach.coaching_skills.iteritems():
             money_bid += ((value - 0.7)/0.6) * (self.coach_value[key]*money)
+        #print 1, money_bid
         money_bid += coach.recent_win_per * (self.coach_value['Recent_history']*money)
+        #print 2, money_bid
         money_bid += coach.total_win_per * (self.coach_value['Total_history']*money)
+        #print 3, money_bid
         return money_bid
         
     def fire_ext(self, coach, ext=True):
@@ -755,7 +760,7 @@ class Club():
         value = 0
         for BM in self.board:
             #print BM, self.money, coach
-            value += BM.B_coach_value(coach, self.money)
+            value += BM.B_coach_value(coach, self.money/5)
         return value
     
     def offer_coach(self, league):
@@ -1025,18 +1030,27 @@ class League():
         self.games_played = 1
         self.conference_rank = []
     
-        for x in range(144):
+    
+        num_teams = 144
+        if debug in ['Salary']:
+            num_teams = 2
+    
+        for x in range(num_teams):
             self.teams[self.club_id] = Club(self.club_id)
             self.club_id += 1
             
         self.coach_creation()
         self.hiring_loop(self.average_salary)
-        self.recruit_loop(1)
+        if debug in ['Salary']:
+            for id,team in self.teams.iteritems():
+                print team.coach_salary
+        if debug in [True, False]:
+            self.recruit_loop(1)
         
-        self.confere_creation()
-        self.conference_team()
+            self.confere_creation()
+            self.conference_team()
         
-        self.set_schedule()
+            self.set_schedule()
         
         if debug == True:
             self.play_season()
